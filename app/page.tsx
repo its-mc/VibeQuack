@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
+import { createPaymentHeader } from "../utils/q402";
 
 // --- TYPES ---
 type Message = { 
@@ -67,7 +68,7 @@ export default function AgentChat() {
   };
 
   // --- API CALLER ---
-  const callAgent = async (action: string, payload: any) => {
+const callAgent = async (action: string, payload: any) => {
     if (!userAddress) {
       setMessages(prev => [...prev, { role: "agent", content: "⚠️ Please connect wallet first." }]);
       return { success: false, error: "No wallet" };
@@ -75,7 +76,8 @@ export default function AgentChat() {
 
     setLoading(true);
     try {
-      const res = await fetch("/api/agent", {
+      // 1. Initial Request
+      let res = await fetch("/api/agent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -85,15 +87,58 @@ export default function AgentChat() {
           ...payload 
         }),
       });
-      const data = await res.json();
+
+      // 2. Q402 INTERCEPTION (The Magic)
+      if (res.status === 402) {
+        console.log("💰 402 Received. Triggering Q402 Flow...");
+        const data = await res.json();
+        const details = data.paymentDetails;
+        
+        // Notify User
+        addLog("Q402 Payment Required", "Pending");
+        setMessages(prev => [...prev, { role: "agent", content: `💰 Q402 PAYMENT REQUEST.\n\nService: ${action.toUpperCase()}\nFee: ${details.amount} wei\n\nPlease sign the request...` }]);
+
+        // 3. Sign EIP-712
+        const xPaymentHeader = await createPaymentHeader(userAddress, details);
+        addLog("Payment Signed", "Success");
+        
+        // 4. Retry with Payment Header
+        res = await fetch("/api/agent", {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/json",
+                "X-PAYMENT": xPaymentHeader 
+            },
+            body: JSON.stringify({ 
+              action, 
+              userAddress, 
+              network: isMainnet ? "mainnet" : "testnet",
+              ...payload 
+            }),
+        });
+      }
+
+      // 5. Parse Final Response
+      if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || "Request Failed");
+      }
+
+      const finalData = await res.json();
       setLoading(false);
-      return data;
-    } catch (e) {
+      return finalData;
+
+    } catch (e: any) {
+      console.error(e);
       setLoading(false);
-      return { success: false, error: "Connection Failed" };
+      if (e.code === 4001) {
+          setMessages(prev => [...prev, { role: "agent", content: "❌ Signature Rejected." }]);
+      } else {
+          setMessages(prev => [...prev, { role: "agent", content: `❌ Error: ${e.message}` }]);
+      }
+      return { success: false, error: e.message };
     }
   };
-
   // --- HANDLERS ---
   const handleSend = async () => {
     if (!input.trim()) return;

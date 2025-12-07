@@ -12,7 +12,8 @@
     "next": "16.0.7",
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "viem": "^2.41.2"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^6.1.0",

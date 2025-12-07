@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: MIT
+
+// THIS IS REPLACED ON EACH GENERATION AND USED TO HOLD THE CODE, THIS IS NOT HARD CODED IN THE APP
 pragma solidity ^0.8.20;
 
 contract GenContract {
