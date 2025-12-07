@@ -40,7 +40,8 @@ export async function POST(req: Request) {
         body: JSON.stringify({
           model: "general_assistant", // <--- THE RESEARCH MODEL
           question: prompt,
-          chatHistory: "off" 
+          chatHistory: "on",
+          sdkUniqueId: userAddress
         })
       });
 
@@ -72,7 +73,8 @@ export async function POST(req: Request) {
           DO NOT require constructor arguments. 
           Ensure Solidity ^0.8.20. 
           User Prompt: ${prompt}`,
-          chatHistory: "off"
+          chatHistory: "on",
+          sdkUniqueId: userAddress
         })
       });
 
